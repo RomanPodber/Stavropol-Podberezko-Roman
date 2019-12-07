@@ -10,11 +10,20 @@ screen = pygame.display.set_mode(size)
 
 
 def draw():
-    pygame.draw.rect(screen, (255, 0, 0), (100, 100, w, w))
+    color = pygame.Color(50, 150, 50)
+    hsva = color.hsva
+    color.hsva = (h, 100, 75, hsva[3])
+    pygame.draw.rect(screen, color, (150 - w // 2, 150 - w // 2, w, w))
     first = w // 2
-    pygame.draw.polygon(screen, (0, 0, 255), [(100, 100), (100 + first, 100 - first), (100 + first * 3, 100 - first),
-                                              (100 + first * 2, 100)])
-    pygame.draw.polygon(screen, (0, 255, 0), [(100 + first * 2, 100 + first * 2), (100 + first * 2, 100), (100 + first * 3, 100 - first), (100 + first * 3, (100 - first) + w)])
+    color.hsva = (h, 100, 100, hsva[3])
+    pygame.draw.polygon(screen, color, [(150 - w // 2, 150 - w // 2), (150 - w // 2 + first, 150 - w // 2 - first),
+                                        (150 - w // 2 + first * 3, 150 - w // 2 - first),
+                                              (100 + first * 2, 150 - w // 2)])
+    color.hsva = (h, 100, 50, hsva[3])
+    pygame.draw.polygon(screen, color, [(150 - w // 2 + first * 2, 150 - w // 2 + first * 2),
+                                        (150 - w // 2 + first * 2, 150 - w // 2),
+                                        (150 - w // 2 + first * 3, 150 - w // 2 - first),
+                                        (150 - w // 2 + first * 3, (150 - w // 2 - first) + w)])
 
 draw()
 
