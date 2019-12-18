@@ -84,3 +84,24 @@ while running:
     pygame.display.flip()
     clock.tick(100)
 pygame.quit()
+
+
+
+
+
+
+
+
+
+first = [int(x) for x in input().split()]
+sec = [int(i) for i in input().split()]
+x1 = first[0]
+y1 = first[1]
+r1 = first[2]
+x2 = sec[0]
+y2 = sec[1]
+r2 = sec[2]
+if (x1 - x2) ** 2 + (y1 - y2) ** 2 > (r1 + r2) ** 2:
+    print('NO')
+else:
+    print('YES')
