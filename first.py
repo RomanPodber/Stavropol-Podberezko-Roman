@@ -1,107 +1,205 @@
+import sys
 import pygame
-import random
 
 pygame.init()
+pygame.key.set_repeat(200, 70)
 
-size = witdhn, height = 1920, 1080
+tank_left = False
+tank_right = False
+tank_up = False
+tank_down = False
+shoot = False
 
-screen = pygame.display.set_mode(size)
-screen.fill((255, 255, 255))
+FPS = 60
+WIDTH = 800
+HEIGHT = 800
+STEP = 10
 
+move = True
+
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 
-def load_image(name, colorkey=None):
-    img = pygame.image.load(name)
-    if colorkey is not None:
-        if colorkey == -1:
-            colorkey = img.get_at((0, 0))
-        img.set_colorkey(colorkey)
-    else:
-        img = img.convert_alpha()
-    return img
-
-
+player = None
 all_sprites = pygame.sprite.Group()
+tiles_group = pygame.sprite.Group()
+player_group = pygame.sprite.Group()
+brick = pygame.sprite.Group()
+bullet = pygame.sprite.Group()
 
-sprite = pygame.sprite.Sprite()
-all_sprites.add(sprite)
+def load_image(name, color_key=None):
+    image = pygame.image.load(name)
+    if color_key is not None:
+        if color_key == -1:
+            color_key = image.get_at((0, 0))
+        image.set_colorkey(color_key)
+    else:
+        image = image.convert_alpha()
+    return image
 
-class Ball(pygame.sprite.Sprite):
-    def __init__(self, all_sprites, radius, x, y):
-        super().__init__(all_sprites)
-        self.radius = radius
-        self.image = pygame.Surface((2 * self.radius, 2 * self.radius), pygame.SRCALPHA, 32)
-        pygame.draw.circle(self.image, pygame.Color('red'), (radius, radius), radius)
-        self.rect = pygame.Rect(x, y, 2 * radius, 2 * radius)
-        self.vx = random.randint(-5, 5)
-        self.vy = random.randint(-5, 5)
+def load_level(filename):
+    with open(filename, 'r') as mapFile:
+        level_map = [line.strip() for line in mapFile]
+    max_width = max(map(len, level_map))
+    return list(map(lambda x: x.ljust(max_width, '.'), level_map))
+
+def generate_level(level):
+    new_player, x, y = None, None, None
+    for y in range(len(level)):
+        for x in range(len(level[y])):
+            if level[y][x] == '.':
+                Tile(x, y)
+            elif level[y][x] == 'x':
+                Brick(x, y)
+            elif level[y][x] == '@':
+                Tile(x, y)
+                new_player = Player(x, y)
+    return new_player, x, y
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+tile_images = {'wall': load_image('brick.jpg'), 'empty': load_image('black.jpg')}
+player_image = load_image('tnk.png')
+
+tile_width = tile_height = 40
+
+class Tile(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(tiles_group, all_sprites)
+        self.image = tile_images['empty']
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+
+
+class Brick(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(brick, all_sprites)
+        self.image = tile_images['wall']
+        self.rect = self.image.get_rect().move(tile_width * pos_x, tile_height * pos_y)
+
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self, pos_x, pos_y):
+        super().__init__(player_group, all_sprites)
+        self.image = player_image
+        self.rect = self.image.get_rect().move(tile_width * pos_x + 15, tile_height * pos_y + 5)
+
+
+class Bullet(pygame.sprite.Sprite):
+    image = load_image('goodbullet2.png')
+    def __init__(self, x, y):
+        super().__init__(bullet, all_sprites)
+        self.image = Bullet.image
+        self.rect = self.image.get_rect()
+        self.x = x
+        self.y = y
+        self.rect.x = x + 10
+        self.rect.y = y + 10
 
     def update(self):
-        self.rect = self.rect.move(self.vx, self.vy)
-        if pygame.sprite.spritecollideany(self, horizontal_borders):
-            self.vy = -self.vy
-        if pygame.sprite.spritecollideany(self, vertical_borders):
-            self.vx = -self.vx
+        global tank_down
+        global tank_up
+        global tank_left
+        global tank_right
 
-class Border(pygame.sprite.Sprite):
-    def __init__(self, x1, y1, x2, y2):
-        super().__init__(all_sprites)
-        if x1 == x2:
-            self.add(vertical_borders)
-            self.image = pygame.Surface([1, y2 - y1])
-            self.rect = pygame.Rect(x1, y1, 1, y2 - y1)
+        if tank_down:
+            box = []
+            if self.rect.y <= 810:
+                self.rect = self.rect.move(0, 5)
+            elif self.rect.y > 810:
+                for bull in bullet:
+                    box.append(bull)
+                bullet.remove(box[0])
 
-        else:
-            self.add(horizontal_borders)
-            self.image = pygame.Surface([x2 - x1, 1])
-            self.rect = pygame.Rect(x1, y1, x2 - x1, 1)
+        if tank_up:
+            box = []
+            if self.rect.y >= -10:
+                self.rect = self.rect.move(0, -5)
+            if self.rect.y < - 10:
+                for bull in bullet:
+                    box.append(bull)
+                if pygame.sprite.spritecollideany(self, brick):
+                    bullet.remove(box[0])
+                bullet.remove(box[0])
 
-all_sprites = pygame.sprite.Group()
-horizontal_borders = pygame.sprite.Group()
-vertical_borders = pygame.sprite.Group()
+        if tank_right:
+            box = []
+            if self.rect.x <= 810:
+                self.rect = self.rect.move(5, 0)
+            elif self.rect.y > 810:
+                for bull in bullet:
+                    box.append(bull)
+                bullet.remove(box[0])
 
-pos = 0, 0
+        if tank_left:
+            box = []
+            if self.rect.x >= -10:
+                self.rect = self.rect.move(-5, 0)
+                if pygame.sprite.spritecollideany(self, brick):
+                    print('da')
+            elif self.rect.x < - 10:
+                for bull in bullet:
+                    box.append(bull)
+                bullet.remove(box[0])
+
+player, level_x, level_y = generate_level(load_level("firstlevell.txt"))
 running = True
-
-Border(5, 5, witdhn - 5, 5)
-Border(5, height - 5, witdhn - 5, height - 5)
-Border(5, 5, 5, height - 5)
-Border(witdhn - 5, 5, witdhn - 5, height - 5)
-for i in range(10):
-    Ball(all_sprites, 20, 100, 100)
-
-
 
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_LEFT:
+                if move:
+                    tank_left = True
+                    tank_right = False
+                    tank_up = False
+                    tank_down = False
+                    player.image = load_image('tnk4.png')
+                    player.rect.x -= STEP
 
-    screen.fill((255, 255, 255))
-    Ball(all_sprites, 100, 100, 100)
-    all_sprites.draw(screen)
-    all_sprites.update()
+            if event.key == pygame.K_RIGHT:
+                tank_right = True
+                tank_down = False
+                tank_up = False
+                tank_left = False
+                player.image = load_image('tnk2.png')
+                player.rect.x += STEP
+
+            if event.key == pygame.K_UP:
+                tank_up = True
+                tank_down = False
+                tank_left = False
+                tank_right = False
+                player.image = load_image('tnk.png')
+                player.rect.y -= STEP
+
+            if event.key == pygame.K_DOWN:
+                tank_down = True
+                tank_right = False
+                tank_up = False
+                tank_left = False
+                player.image = load_image('tnk3.png')
+                player.rect.y += STEP
+
+            if event.key == pygame.K_SPACE:
+                shoot = True
+                x, y = player.rect.x, player.rect.y
+                Bullet(x, y)
+
+
+    screen.fill(pygame.Color(0, 0, 0))
+    tiles_group.draw(screen)
+    brick.draw(screen)
+    brick.update()
+    bullet.draw(screen)
+    if shoot:
+        bullet.update()
+    player_group.draw(screen)
+    player_group.update()
     pygame.display.flip()
-    clock.tick(100)
-pygame.quit()
+    clock.tick(FPS)
 
-
-
-
-
-
-
-
-
-first = [int(x) for x in input().split()]
-sec = [int(i) for i in input().split()]
-x1 = first[0]
-y1 = first[1]
-r1 = first[2]
-x2 = sec[0]
-y2 = sec[1]
-r2 = sec[2]
-if (x1 - x2) ** 2 + (y1 - y2) ** 2 > (r1 + r2) ** 2:
-    print('NO')
-else:
-    print('YES')
+terminate()
